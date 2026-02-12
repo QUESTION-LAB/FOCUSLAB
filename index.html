@@ -487,6 +487,7 @@ body.rank-diamond .timer-card {
       <button onclick="stopTimer()">Stop</button>
       <button onclick="resetTimer()">Reset</button>
       <button onclick="startExamMode()">Exam</button>
+      <button onclick="goToAnalytics()">AI 분석</button>
     </div>
   </div>
 
@@ -496,6 +497,7 @@ body.rank-diamond .timer-card {
     <input type="number" id="runTimeInput" placeholder="운동 시간" />
     <input type="number" id="runDistanceInput" placeholder="거리 (km)" />
     <input type="number" id="caffeineInput" placeholder="카페인 횟수" />
+    <input type="number" id="waterInput" placeholder="물 섭취량 (ml)" />
     <select id="subjectInput" style="width:100%; padding:12px; border-radius:12px; border:1px solid #2d333b; background:#0d1117; color:#e6edf3; margin-bottom:12px;">
       <option value="국어">국어</option>
       <option value="영어">영어</option>
@@ -620,6 +622,9 @@ body.rank-diamond .timer-card {
 </div>
 
 <script>
+function goToAnalytics() {
+  window.location.href = "analytics.html";
+}
 let timerInterval;
 let seconds = 0;
 let distractionCount = 0;
@@ -635,6 +640,38 @@ let adaptiveWeights = JSON.parse(localStorage.getItem("adaptiveWeights")) || {
   exercise:1,
   caffeine:1
 };
+
+// ================= REAL AI MODEL =================
+let aiModel = JSON.parse(localStorage.getItem("aiModel")) || {
+  wSleep: 0.05,
+  wExercise: 0.03,
+  wCaffeine: -0.04,
+  wWater: 0.002,
+  bias: 10
+};
+
+function predictScoreAI(sleepMin, runTime, caffeine, water) {
+  return aiModel.bias
+    + aiModel.wSleep * sleepMin
+    + aiModel.wExercise * runTime
+    + aiModel.wCaffeine * caffeine
+    + aiModel.wWater * water;
+}
+
+function trainAIModel(actual, sleepMin, runTime, caffeine, water) {
+  const prediction = predictScoreAI(sleepMin, runTime, caffeine, water);
+  const error = actual - prediction;
+
+  const lr = 0.0000005; // learning rate (작게!)
+
+  aiModel.wSleep += lr * error * sleepMin;
+  aiModel.wExercise += lr * error * runTime;
+  aiModel.wCaffeine += lr * error * caffeine;
+  aiModel.wWater += lr * error * water;
+  aiModel.bias += lr * error;
+
+  localStorage.setItem("aiModel", JSON.stringify(aiModel));
+}
 
 // ================= RANK POINT SYSTEM =================
 
@@ -680,6 +717,7 @@ function saveBodyInputs() {
     runTime: document.getElementById("runTimeInput").value,
     runDistance: document.getElementById("runDistanceInput").value,
     caffeine: document.getElementById("caffeineInput").value,
+    water: document.getElementById("waterInput").value,
     subject: document.getElementById("subjectInput").value
   };
   localStorage.setItem("bodyInputs", JSON.stringify(bodyData));
@@ -693,11 +731,12 @@ function loadBodyInputs() {
   document.getElementById("runTimeInput").value = saved.runTime || "";
   document.getElementById("runDistanceInput").value = saved.runDistance || "";
   document.getElementById("caffeineInput").value = saved.caffeine || "";
+  document.getElementById("waterInput").value = saved.water || "";
   document.getElementById("subjectInput").value = saved.subject || "국어";
 }
 
 // auto-save on input change
-["sleepInput","runTimeInput","runDistanceInput","caffeineInput","subjectInput"]
+["sleepInput","runTimeInput","runDistanceInput","caffeineInput","waterInput","subjectInput"]
   .forEach(id => {
     document.getElementById(id).addEventListener("input", saveBodyInputs);
   });
@@ -914,10 +953,13 @@ let finalScore = Math.max(0,
 
   // AI predicted score (simple model)
   // convert sleep minutes to hours for prediction weight
-  let sleepHours = sleep / 60;
-  let predicted = Math.min(100,
-    Math.round((sleepHours * 5 + runTime * 0.5 - caffeine * 3) + currentStreak)
-  );
+  let water = parseInt(document.getElementById("waterInput").value) || 0;
+
+  let predicted = Math.round(
+  predictScoreAI(sleep, runTime, caffeine, water)
+);
+
+  predicted = Math.max(0, Math.min(100, predicted));
   document.getElementById("predictedScore").textContent = predicted;
 
   // adaptive learning (simple reinforcement)
@@ -969,6 +1011,7 @@ localStorage.setItem("rankPoints", rankPoints);
 updateRank();
   document.getElementById("predictionBar").style.width = finalScore + "%";
 
+  trainAIModel(finalScore, sleep, runTime, caffeine, water);
   saveSession(finalScore, runTime);
   updateStats();
   updateWeeklyReport();
@@ -1065,6 +1108,7 @@ function saveSession(score, runTime) {
   const studyEnd = studyEndTime;
   let sleep = parseInt(document.getElementById("sleepInput").value) || 0;
   let caffeine = parseInt(document.getElementById("caffeineInput").value) || 0;
+  let water = parseInt(document.getElementById("waterInput").value) || 0;
   let subject = document.getElementById("subjectInput").value || "기타";
   let sessions = JSON.parse(localStorage.getItem("focusSessions")) || [];
 
@@ -1073,6 +1117,7 @@ function saveSession(score, runTime) {
     runTime,
     sleep,
     caffeine,
+    water,
     subject,
     studyStart,
     studyEnd,
