@@ -671,7 +671,12 @@ function updateTimer() {
   document.getElementById("timer").textContent = `${hrs}:${mins}:${secs}`;
 
   if (active) {
-    let stability = Math.max(0, 100 - distractionCount * 5);
+    let baseStability = Math.max(0, 100 - distractionCount * 5);
+
+  // 창이 포커스 아닐 때 추가 감점
+  let decay = document.hasFocus() ? 0 : 3;
+
+  let stability = Math.max(0, baseStability - decay);
     document.getElementById("stabilityBar").style.width = stability + "%";
 
     focusData.push(stability);
@@ -744,11 +749,33 @@ function startExamMode() {
   });
 }
 
+// ================= DISTRACTION DETECTION UPGRADE =================
+
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && active) {
-    distractionCount++;
+    registerDistraction();
   }
 });
+
+window.addEventListener("blur", () => {
+  if (active) {
+    registerDistraction();
+  }
+});
+
+function registerDistraction() {
+  distractionCount++;
+
+  let stability = Math.max(0, 100 - distractionCount * 5);
+
+  document.getElementById("stabilityBar").style.width = stability + "%";
+
+  focusData.push(stability);
+  drawChart();
+
+  document.getElementById("warning").textContent =
+    "⚠ 외부 활동 감지";
+}
 
 function calculateScore() {
   let sleep = parseInt(document.getElementById("sleepInput").value) || 0;
