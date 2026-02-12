@@ -129,11 +129,12 @@ function goToIndex(){ window.location.href="index.html"; }
 
 const sessions = JSON.parse(localStorage.getItem("sessions")) || [];
 
-if (sessions.length < 12) {
-  document.querySelector(".container").innerHTML =
-    "<div style='padding:40px'>⚠ 최소 12세션 이상 필요 (NN 학습용)<br>현재: "
-    + sessions.length + " 세션</div>";
-  throw new Error("Not enough data");
+const cacheKey = "analyticsCache";
+const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+let useCache = false;
+
+if (cached && cached.sessionCount === sessions.length) {
+  useCache = true;
 }
 
 // ================= DATA =================
@@ -297,10 +298,26 @@ function train(epochs=1200, lr=0.005){
   }
 }
 
-train();
+let valPred, valMAE, valR2;
 
-function predictBatch(Xn){
-  return Xn.map(x=>forward(x).z2);
+if (!useCache) {
+  train();
+  valPred = predictBatch(X_val_n);
+  valMAE = MAE(y_val,valPred);
+  valR2 = R2(y_val,valPred);
+
+  localStorage.setItem(cacheKey, JSON.stringify({
+    sessionCount: sessions.length,
+    lossHistory,
+    valPred,
+    valMAE,
+    valR2
+  }));
+} else {
+  lossHistory = cached.lossHistory;
+  valPred = cached.valPred;
+  valMAE = cached.valMAE;
+  valR2 = cached.valR2;
 }
 
 // ================= METRICS =================
@@ -316,10 +333,6 @@ function R2(yT,yP){
   }
   return 1-(ssRes/ssTot);
 }
-
-const valPred=predictBatch(X_val_n);
-const valMAE=MAE(y_val,valPred);
-const valR2=R2(y_val,valPred);
 
 // ================= UI =================
 document.getElementById("maeValue").textContent=valMAE.toFixed(2);
