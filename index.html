@@ -289,6 +289,23 @@ body.rank-diamond {
   animation: rankPop .6s ease;
 }
 
+@keyframes rpFloat {
+  0% { opacity:0; transform:translateY(10px); }
+  30% { opacity:1; transform:translateY(0); }
+  100% { opacity:0; transform:translateY(-20px); }
+}
+
+.rp-float {
+  position:absolute;
+  top:-10px;
+  right:0;
+  font-size:14px;
+  color:#34c759;
+  font-weight:600;
+  animation: rpFloat 1s ease forwards;
+  pointer-events:none;
+}
+
 /* Timer color by rank */
 body.rank-bronze .timer { color:#f0f6fc; }
 body.rank-silver .timer { color:#b8d4ff; }
@@ -455,7 +472,7 @@ body.rank-diamond .timer-card {
 
   <div class="timer-card">
     <div class="timer" id="timer">00:00:00</div>
-    <div id="rankContainer" style="margin-top:25px;">
+    <div id="rankContainer" style="margin-top:25px; position:relative;">
       <div style="font-size:12px; letter-spacing:2px; color:#8b949e; margin-bottom:6px;">PERFORMANCE RANK</div>
       <div id="rankDisplay" style="font-size:28px; font-weight:600;">Bronze 🥉</div>
       <div id="rankProgress" style="margin-top:6px; font-size:11px; opacity:0.7;"></div>
@@ -846,7 +863,14 @@ let finalScore = Math.max(0,
   document.getElementById("warning").textContent =
     "🏃 운동일 보너스 +5 적용";
 }
-  // ===== RP GAIN =====
+  // ===== RANK DECAY FIRST =====
+let decayPenalty = 0;
+if (finalScore < 50) {
+  decayPenalty = 30;
+  rankPoints = Math.max(0, rankPoints - decayPenalty);
+}
+
+// ===== RP GAIN =====
 let rpGain = Math.round(finalScore * 0.5);
 if (finalScore === 100) rpGain += 20;
 if (finalScore >= 90) rpGain += 10;
@@ -854,9 +878,18 @@ if (distractionCount === 0) rpGain += 10;
 
 rankPoints += rpGain;
 
-// ===== RANK DECAY =====
-if (finalScore < 50) {
-  rankPoints = Math.max(0, rankPoints - 30);
+// Net change calculation
+let netGain = rpGain - decayPenalty;
+
+// Show RP gain animation (net value)
+const rankContainer = document.getElementById("rankContainer");
+if (rankContainer && netGain !== 0) {
+  const float = document.createElement("div");
+  float.className = "rp-float";
+  float.textContent = (netGain > 0 ? "+" : "") + netGain + " RP";
+  float.style.color = netGain > 0 ? "#34c759" : "#ff3b30";
+  rankContainer.appendChild(float);
+  setTimeout(()=>float.remove(),1000);
 }
 
 localStorage.setItem("rankPoints", rankPoints);
@@ -872,7 +905,6 @@ updateRank();
   drawActivityTimeline();
   analyzeFocusRhythm();
   analyzeChronotype();
-  updateRank();
 // END OF calculateScore()
 }
 
@@ -930,7 +962,13 @@ function updateRank() {
   const rpText = document.getElementById("rpText");
   const rankProgress = document.getElementById("rankProgress");
 
-  if (rpBar) rpBar.style.width = progress + "%";
+  if (rpBar) {
+    rpBar.style.transition = "none";
+    rpBar.style.width = progress + "%";
+    setTimeout(()=>{
+      rpBar.style.transition = "width .4s ease";
+    },10);
+  }
   if (rpText) rpText.textContent = rankPoints + " RP";
   if (rankProgress)
     rankProgress.innerHTML = `다음 랭크까지 ${Math.max(0,nextThreshold-rankPoints)} RP`;
