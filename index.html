@@ -17,7 +17,12 @@ body {
   background: #0d1117;
   color: #e6edf3;
   min-height: 100vh;
-  padding: 50px 70px;
+  padding: clamp(16px, 4vw, 50px) clamp(14px, 5vw, 70px);
+  padding-left: max(clamp(14px, 5vw, 70px), env(safe-area-inset-left));
+  padding-right: max(clamp(14px, 5vw, 70px), env(safe-area-inset-right));
+  padding-top: max(clamp(16px, 4vw, 50px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(16px, 4vw, 50px), env(safe-area-inset-bottom));
+  overflow-x: hidden;
 }
 
 .container {
@@ -25,22 +30,22 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 70px;
+  gap: clamp(28px, 5vw, 70px);
 }
 
 /* ================= TOP ================= */
 
 .top-dashboard {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: clamp(16px, 3.5vw, 28px);
   align-items: stretch;
 }
 
 .timer-card {
   grid-column: 1 / 7;
   text-align: center;
-  padding: 50px 30px;
+  padding: clamp(22px, 5vw, 50px) clamp(16px, 4vw, 30px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -49,17 +54,22 @@ body {
   background: #11161d;
   border: 1px solid #1f2630;
   box-shadow: 0 0 0 1px #1f2630;
+  min-width: 0;
 }
 
 .timer {
-  font-size: 120px;
+  font-size: clamp(56px, 10vw, 120px);
   font-weight: 600;
-  letter-spacing: 10px;
+  letter-spacing: clamp(2px, 1.2vw, 10px);
   color: #f0f6fc;
 }
 
 .control-buttons {
   margin-top: 25px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
 }
 
 button {
@@ -70,8 +80,9 @@ button {
   color: #c9d1d9;
   cursor: pointer;
   font-size: 13px;
-  margin: 0 6px;
+  margin: 0;
   transition: all .2s ease;
+  min-height: 40px;
 }
 
 button:hover {
@@ -90,6 +101,7 @@ button:hover {
   height: 100%;
   transition: all .2s ease;
   min-height: 260px;
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -154,7 +166,14 @@ input:focus {
 .lower-dashboard {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 35px;
+  gap: clamp(16px, 4vw, 35px);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
 }
 
 .card {
@@ -163,6 +182,7 @@ input:focus {
   padding: 30px;
   border: 1px solid #1f2630;
   transition: all .2s ease;
+  min-width: 0;
 }
 
   .card:hover {
@@ -361,8 +381,66 @@ body.rank-diamond .timer-card {
   .lower-dashboard {
     grid-template-columns: 1fr;
   }
-  .timer {
-    font-size: 100px;
+  .stat-card {
+    min-height: unset;
+    padding: 22px;
+  }
+  .card {
+    padding: 22px;
+  }
+}
+
+@media(max-width:768px) {
+  button {
+    padding: 12px 16px;
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  input,
+  select {
+    font-size: 16px;
+  }
+
+  .score {
+    font-size: 64px;
+  }
+
+  .score.small {
+    font-size: 52px;
+  }
+
+  .session-metrics {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  #rankContainer > div:nth-child(1) {
+    letter-spacing: 1.5px;
+  }
+}
+
+@media(max-width:480px) {
+  .timer-card {
+    border-radius: 18px;
+  }
+
+  #rankContainer > div:nth-child(4) {
+    width: min(240px, 80vw) !important;
+  }
+
+  .stat-card,
+  .card {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  #stampGrid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  #heatmap {
+    gap: 3px !important;
   }
 }
 </style>
@@ -540,6 +618,10 @@ let adaptiveWeights = JSON.parse(localStorage.getItem("adaptiveWeights")) || {
   exercise:1,
   caffeine:1
 };
+
+// ================= RANK POINT SYSTEM =================
+let rankPoints = Number(localStorage.getItem("rankPoints")) || 0;
+
 
 const subjectColors = {
   "국어": "#ff375f",
@@ -754,10 +836,12 @@ updateRank();
   analyzeFocusRhythm();
   analyzeChronotype();
   updateRank();
-// ================= PERFORMANCE RANK SYSTEM =================
+// END OF calculateScore()
+}
+
 function updateRank() {
 
-  let prevRank = document.getElementById("rankDisplay").textContent;
+  let prevRank = document.getElementById("rankDisplay")?.textContent || "";
 
   let rank = "Bronze 🥉";
   let theme = "rank-bronze";
@@ -789,16 +873,14 @@ function updateRank() {
   );
   document.body.classList.add(theme);
 
-  document.getElementById("rankDisplay").textContent = rank;
+  const rankDisplay = document.getElementById("rankDisplay");
+  if (rankDisplay) rankDisplay.textContent = rank;
 
-  // rank up animation
-  if (prevRank !== rank) {
-    const el = document.getElementById("rankDisplay");
-    el.classList.add("rank-up");
-    setTimeout(()=>el.classList.remove("rank-up"),600);
+  if (prevRank && prevRank !== rank && rankDisplay) {
+    rankDisplay.classList.add("rank-up");
+    setTimeout(()=>rankDisplay.classList.remove("rank-up"),600);
   }
 
-  // RP gauge
   let base = 0;
   if (rankPoints >= 3000) base = 3000;
   else if (rankPoints >= 1500) base = 1500;
@@ -807,13 +889,16 @@ function updateRank() {
   let progress = ((rankPoints - base) / (nextThreshold - base)) * 100;
   progress = Math.max(0, Math.min(100, progress));
 
-  document.getElementById("rpBar").style.width = progress + "%";
-  document.getElementById("rpText").textContent = rankPoints + " RP";
+  const rpBar = document.getElementById("rpBar");
+  const rpText = document.getElementById("rpText");
+  const rankProgress = document.getElementById("rankProgress");
 
-  document.getElementById("rankProgress").innerHTML =
-    `다음 랭크까지 ${Math.max(0,nextThreshold-rankPoints)} RP`;
+  if (rpBar) rpBar.style.width = progress + "%";
+  if (rpText) rpText.textContent = rankPoints + " RP";
+  if (rankProgress)
+    rankProgress.innerHTML = `다음 랭크까지 ${Math.max(0,nextThreshold-rankPoints)} RP`;
 }
-}
+
 
 function drawChart() {
   ctx.clearRect(0, 0, 300, 120);
