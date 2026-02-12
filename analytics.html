@@ -139,6 +139,11 @@ canvas {
     <canvas id="scatterChart"></canvas>
   </div>
 
+  <div class="card" style="grid-column:1 / span 2;">
+    <h3>🔄 Online Learning Progress (Session Error Trend)</h3>
+    <canvas id="onlineChart"></canvas>
+  </div>
+
 </div>
 
 <script>
@@ -434,6 +439,45 @@ function drawScatter(){
 }
 
 drawScatter();
+
+// ================= ONLINE LEARNING GRAPH =================
+function drawOnlineLearning(){
+  if(!sessions.length) return;
+
+  const c=document.getElementById("onlineChart");
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+
+  // normalize full dataset using training means/stds
+  const X_all = sessions.map(s=>[
+    s.sleep||0,
+    s.runTime||0,
+    s.caffeine||0,
+    s.water||0
+  ]);
+
+  const X_all_n = X_all.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
+
+  const preds = X_all_n.map(x=>forward(x).z2);
+
+  const errors = preds.map((p,i)=>Math.abs(p-(sessions[i].score||0)));
+
+  ctx.beginPath();
+  ctx.strokeStyle="#f59e0b";
+
+  const maxErr = Math.max(...errors,1);
+
+  errors.forEach((err,i)=>{
+    const x=(i/(errors.length-1))*c.width;
+    const y=c.height-(err/maxErr)*c.height;
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+
+  ctx.stroke();
+}
+
+drawOnlineLearning();
 
 // ================= WEIGHT VISUAL =================
 const container=document.getElementById("weightsContainer");
