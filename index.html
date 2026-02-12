@@ -637,6 +637,41 @@ let adaptiveWeights = JSON.parse(localStorage.getItem("adaptiveWeights")) || {
 };
 
 // ================= RANK POINT SYSTEM =================
+
+// ================= SESSION PERSISTENCE =================
+function saveLiveSessionState() {
+  localStorage.setItem("liveSession", JSON.stringify({
+    seconds,
+    distractionCount,
+    active,
+    studyStartTime
+  }));
+}
+
+function loadLiveSessionState() {
+  const saved = JSON.parse(localStorage.getItem("liveSession"));
+  if (!saved) return;
+
+  seconds = saved.seconds || 0;
+  distractionCount = saved.distractionCount || 0;
+  active = saved.active || false;
+  studyStartTime = saved.studyStartTime || null;
+
+  const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  document.getElementById("timer").textContent = `${hrs}:${mins}:${secs}`;
+
+  document.getElementById("distractionCountUI").textContent = distractionCount;
+  document.getElementById("sessionMinutesUI").textContent = Math.floor(seconds / 60);
+
+  if (active) {
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+}
+
+window.addEventListener("beforeunload", saveLiveSessionState);
+
 let rankPoints = Number(localStorage.getItem("rankPoints")) || 0;
 
 
@@ -720,6 +755,7 @@ if (focusData.length > 10) {
   document.getElementById("momentumUI").textContent =
     momentum > 0 ? "+"+momentum+"%" : momentum+"%";
 }
+  saveLiveSessionState();
 }
 
 function startTimer() {
@@ -736,6 +772,7 @@ function stopTimer() {
     active = false;
     clearInterval(timerInterval);
     calculateScore();
+    localStorage.removeItem("liveSession");
   }
 }
 
@@ -754,6 +791,7 @@ function resetTimer() {
   drawChart();
   studyStartTime = null;
   studyEndTime = null;
+  localStorage.removeItem("liveSession");
 }
 
 function startExamMode() {
@@ -863,14 +901,15 @@ let finalScore = Math.max(0,
   document.getElementById("warning").textContent =
     "🏃 운동일 보너스 +5 적용";
 }
-  // ===== RANK DECAY FIRST =====
-let decayPenalty = 0;
+  // ===== REAL RP CALCULATION =====
+let prevRP = rankPoints;
+
+// Decay first
 if (finalScore < 50) {
-  decayPenalty = 30;
-  rankPoints = Math.max(0, rankPoints - decayPenalty);
+  rankPoints = Math.max(0, rankPoints - 30);
 }
 
-// ===== RP GAIN =====
+// Gain
 let rpGain = Math.round(finalScore * 0.5);
 if (finalScore === 100) rpGain += 20;
 if (finalScore >= 90) rpGain += 10;
@@ -878,8 +917,11 @@ if (distractionCount === 0) rpGain += 10;
 
 rankPoints += rpGain;
 
-// Net change calculation
-let netGain = rpGain - decayPenalty;
+// Clamp final RP to minimum 0
+rankPoints = Math.max(0, rankPoints);
+
+// Real delta
+let netGain = rankPoints - prevRP;
 
 // Show RP gain animation (net value)
 const rankContainer = document.getElementById("rankContainer");
@@ -1462,6 +1504,7 @@ analyzeFocusRhythm();
 analyzeChronotype();
 updateStamps(0,0);
 updateRank();
+loadLiveSessionState();
 </script>
 
 </body>
