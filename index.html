@@ -670,7 +670,37 @@ function loadLiveSessionState() {
   }
 }
 
+
 window.addEventListener("beforeunload", saveLiveSessionState);
+
+// ================= BODY INPUT PERSISTENCE =================
+function saveBodyInputs() {
+  const bodyData = {
+    sleep: document.getElementById("sleepInput").value,
+    runTime: document.getElementById("runTimeInput").value,
+    runDistance: document.getElementById("runDistanceInput").value,
+    caffeine: document.getElementById("caffeineInput").value,
+    subject: document.getElementById("subjectInput").value
+  };
+  localStorage.setItem("bodyInputs", JSON.stringify(bodyData));
+}
+
+function loadBodyInputs() {
+  const saved = JSON.parse(localStorage.getItem("bodyInputs"));
+  if (!saved) return;
+
+  document.getElementById("sleepInput").value = saved.sleep || "";
+  document.getElementById("runTimeInput").value = saved.runTime || "";
+  document.getElementById("runDistanceInput").value = saved.runDistance || "";
+  document.getElementById("caffeineInput").value = saved.caffeine || "";
+  document.getElementById("subjectInput").value = saved.subject || "국어";
+}
+
+// auto-save on input change
+["sleepInput","runTimeInput","runDistanceInput","caffeineInput","subjectInput"]
+  .forEach(id => {
+    document.getElementById(id).addEventListener("input", saveBodyInputs);
+  });
 
 let rankPoints = Number(localStorage.getItem("rankPoints")) || 0;
 
@@ -1505,6 +1535,7 @@ analyzeChronotype();
 updateStamps(0,0);
 updateRank();
 loadLiveSessionState();
+loadBodyInputs();
 </script>
 
 </body>
