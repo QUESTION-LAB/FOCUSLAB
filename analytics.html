@@ -96,9 +96,27 @@ canvas {
   </div>
 
   <div class="card">
-    <h3>🎯 모델 정확도</h3>
+    <h3>🎯 모델 정확도 (R²)</h3>
     <div class="metric" id="accuracyValue">0%</div>
-    <div class="sub">100 - (MAE 기준 정규화)</div>
+    <div class="sub">결정계수 기반 설명력</div>
+  </div>
+
+  <div class="card">
+    <h3>⚠ 예측 오차율</h3>
+    <div class="metric" id="errorRateValue">0%</div>
+    <div class="sub">MAE / 100 정규화 비율</div>
+  </div>
+
+  <div class="card">
+    <h3>🧠 모델 신뢰도</h3>
+    <div class="metric" id="confidenceValue">0%</div>
+    <div class="sub">데이터 축적 기반 신뢰도</div>
+  </div>
+
+  <div class="card">
+    <h3>📦 세션 수</h3>
+    <div class="metric" id="sessionCountValue">0</div>
+    <div class="sub">현재 학습에 사용된 세션 수</div>
   </div>
 
   <div class="card">
@@ -128,6 +146,9 @@ canvas {
 function goToIndex(){ window.location.href="index.html"; }
 
 const sessions = JSON.parse(localStorage.getItem("sessions")) || [];
+
+// ===== Model Confidence =====
+const modelConfidence = Math.min(100, sessions.length * 3);
 
 const cacheKey = "analyticsCache";
 const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
@@ -335,8 +356,14 @@ function R2(yT,yP){
 }
 
 // ================= UI =================
-document.getElementById("maeValue").textContent=valMAE.toFixed(2);
-document.getElementById("accuracyValue").textContent=(valR2*100).toFixed(1)+"%";
+document.getElementById("maeValue").textContent = valMAE.toFixed(2);
+document.getElementById("accuracyValue").textContent = (valR2*100).toFixed(1)+"%";
+
+const errorRate = Math.min(100, (valMAE/100)*100);
+document.getElementById("errorRateValue").textContent = errorRate.toFixed(1)+"%";
+
+document.getElementById("confidenceValue").textContent = modelConfidence + "%";
+document.getElementById("sessionCountValue").textContent = sessions.length;
 
 // ================= LOSS GRAPH =================
 function drawLoss(){
