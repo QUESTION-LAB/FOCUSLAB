@@ -741,7 +741,29 @@ function loadBodyInputs() {
     document.getElementById(id).addEventListener("input", saveBodyInputs);
   });
 
+
 let rankPoints = Number(localStorage.getItem("rankPoints")) || 0;
+
+// ================= DASHBOARD STATE PERSISTENCE =================
+function saveDashboardState(){
+  const state = {
+    score: document.getElementById("score").textContent,
+    predicted: document.getElementById("predictedScore").textContent,
+    stabilityWidth: document.getElementById("stabilityBar").style.width,
+    predictionWidth: document.getElementById("predictionBar").style.width
+  };
+  localStorage.setItem("dashboardState", JSON.stringify(state));
+}
+
+function loadDashboardState(){
+  const saved = JSON.parse(localStorage.getItem("dashboardState"));
+  if(!saved) return;
+
+  document.getElementById("score").textContent = saved.score || 0;
+  document.getElementById("predictedScore").textContent = saved.predicted || 0;
+  document.getElementById("stabilityBar").style.width = saved.stabilityWidth || "0%";
+  document.getElementById("predictionBar").style.width = saved.predictionWidth || "0%";
+}
 
 
 const subjectColors = {
@@ -824,6 +846,7 @@ if (focusData.length > 10) {
   document.getElementById("momentumUI").textContent =
     momentum > 0 ? "+"+momentum+"%" : momentum+"%";
 }
+  saveDashboardState();
   saveLiveSessionState();
 }
 
@@ -1020,6 +1043,7 @@ updateRank();
   drawActivityTimeline();
   analyzeFocusRhythm();
   analyzeChronotype();
+  saveDashboardState();
 // END OF calculateScore()
 }
 
@@ -1581,6 +1605,7 @@ updateStamps(0,0);
 updateRank();
 loadLiveSessionState();
 loadBodyInputs();
+loadDashboardState();
 </script>
 
 </body>
