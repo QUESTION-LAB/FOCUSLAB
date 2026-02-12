@@ -641,21 +641,37 @@ let adaptiveWeights = JSON.parse(localStorage.getItem("adaptiveWeights")) || {
   caffeine:1
 };
 
-// ================= REAL AI MODEL =================
-let aiModel = JSON.parse(localStorage.getItem("aiModel")) || {
-  wSleep: 0.05,
-  wExercise: 0.03,
-  wCaffeine: -0.04,
-  wWater: 0.002,
-  bias: 10
-};
+// ================= NEURAL NETWORK MODEL (SHARED) =================
+let nnModel = JSON.parse(localStorage.getItem("nnModel"));
+
+function relu(x){ return Math.max(0,x); }
 
 function predictScoreAI(sleepMin, runTime, caffeine, water) {
-  return aiModel.bias
-    + aiModel.wSleep * sleepMin
-    + aiModel.wExercise * runTime
-    + aiModel.wCaffeine * caffeine
-    + aiModel.wWater * water;
+
+  // fallback to simple rule if no NN trained yet
+  if(!nnModel){
+    return 10 + sleepMin*0.02 + runTime*0.03 - caffeine*2 + water*0.001;
+  }
+
+  const inputs = [sleepMin, runTime, caffeine, water];
+
+  // hidden layer
+  let hidden = [];
+  for(let j=0;j<nnModel.hiddenSize;j++){
+    let sum = nnModel.b1[j];
+    for(let i=0;i<inputs.length;i++){
+      sum += inputs[i] * nnModel.W1[i][j];
+    }
+    hidden[j] = relu(sum);
+  }
+
+  // output layer
+  let output = nnModel.b2;
+  for(let j=0;j<hidden.length;j++){
+    output += hidden[j] * nnModel.W2[j];
+  }
+
+  return output;
 }
 
 function trainAIModel(actual, sleepMin, runTime, caffeine, water) {
@@ -1061,7 +1077,6 @@ localStorage.setItem("rankPoints", rankPoints);
 updateRank();
   document.getElementById("predictionBar").style.width = finalScore + "%";
 
-  trainAIModel(finalScore, sleep, runTime, caffeine, water);
   saveSession(finalScore, runTime);
   updateStats();
   updateWeeklyReport();
