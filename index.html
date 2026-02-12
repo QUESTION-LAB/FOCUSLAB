@@ -687,7 +687,20 @@ function saveLiveSessionState() {
 
 function loadLiveSessionState() {
   const saved = JSON.parse(localStorage.getItem("liveSession"));
-  if (!saved) return;
+
+  // If no saved session → hard reset UI
+  if (!saved) {
+    seconds = 0;
+    distractionCount = 0;
+    active = false;
+    studyStartTime = null;
+
+    document.getElementById("timer").textContent = "00:00:00";
+    document.getElementById("distractionCountUI").textContent = 0;
+    document.getElementById("sessionMinutesUI").textContent = 0;
+    document.getElementById("momentumUI").textContent = "0%";
+    return;
+  }
 
   seconds = saved.seconds || 0;
   distractionCount = saved.distractionCount || 0;
