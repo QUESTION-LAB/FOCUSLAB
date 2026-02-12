@@ -1287,10 +1287,12 @@ function drawCorrelation() {
   const sleeps = sessions.map(s => s.sleep);
   const exercises = sessions.map(s => s.runTime);
   const caffeine = sessions.map(s => s.caffeine);
+  const water = sessions.map(s => s.water);
 
   const rSleep = pearsonCorrelation(sleeps, scores);
   const rExercise = pearsonCorrelation(exercises, scores);
   const rCaffeine = pearsonCorrelation(caffeine, scores);
+  const rWater = pearsonCorrelation(water, scores);
 
   sessions.forEach((s)=>{
     corrCtx.fillStyle = "#34c759";
@@ -1301,15 +1303,19 @@ function drawCorrelation() {
 
     corrCtx.fillStyle = "#ff3b30";
     corrCtx.fillRect(s.caffeine*20, 120 - s.score, 3, 3);
+
+    corrCtx.fillStyle = "#ffd60a";
+    corrCtx.fillRect(s.water/20, 120 - s.score, 3, 3);
   });
 
   document.getElementById("correlationValues").innerHTML =
     `수면 r: ${rSleep.toFixed(2)}<br>` +
     `운동 r: ${rExercise.toFixed(2)}<br>` +
-    `카페인 r: ${rCaffeine.toFixed(2)}`;
+    `카페인 r: ${rCaffeine.toFixed(2)}<br>` +
+    `물 섭취 r: ${rWater.toFixed(2)}`;
 
   // Call strategy generation based on correlations
-  generateDailyStrategy(rSleep, rExercise, rCaffeine);
+  generateDailyStrategy(rSleep, rExercise, rCaffeine, rWater);
 
   // update adaptive weights using real correlation
   adaptiveWeights.sleep = 1 + rSleep;
@@ -1390,7 +1396,7 @@ function drawActivityTimeline() {
   });
 }
 
-function generateDailyStrategy(rSleep, rExercise, rCaffeine) {
+function generateDailyStrategy(rSleep, rExercise, rCaffeine, rWater) {
   let strategy = [];
 
   if (rSleep > 0.3) {
@@ -1403,6 +1409,14 @@ function generateDailyStrategy(rSleep, rExercise, rCaffeine) {
 
   if (rCaffeine < -0.3) {
     strategy.push("• 카페인 섭취가 점수 하락과 연결됩니다. 오늘은 줄여보세요.");
+  }
+
+  if (rWater > 0.3) {
+    strategy.push("• 물 섭취량이 집중 상승과 연결됩니다. 하루 1.5~2L 유지해보세요.");
+  }
+
+  if (rWater < -0.3) {
+    strategy.push("• 과도한 수분 섭취가 집중 저하와 연결됩니다. 균형을 조정해보세요.");
   }
 
   if (strategy.length === 0) {
