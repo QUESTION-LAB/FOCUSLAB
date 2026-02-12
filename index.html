@@ -863,7 +863,21 @@ function stopTimer() {
     studyEndTime = Date.now();
     active = false;
     clearInterval(timerInterval);
+
+    // Calculate score for this session
     calculateScore();
+
+    // Reset timer AFTER scoring
+    seconds = 0;
+    distractionCount = 0;
+    focusData = [];
+
+    document.getElementById("timer").textContent = "00:00:00";
+    document.getElementById("distractionCountUI").textContent = 0;
+    document.getElementById("sessionMinutesUI").textContent = 0;
+    document.getElementById("momentumUI").textContent = "0%";
+
+    saveDashboardState();
     localStorage.removeItem("liveSession");
   }
 }
