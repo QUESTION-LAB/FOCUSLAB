@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FOCUSLAB AI Analytics</title>
+
+<style>
+body {
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+  background:#0d1117;
+  color:#e6edf3;
+}
+
+header {
+  padding:24px;
+  font-size:22px;
+  font-weight:600;
+  border-bottom:1px solid #222;
+}
+
+.container {
+  padding:24px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px;
+}
+
+.card {
+  background:#161b22;
+  border:1px solid #2d333b;
+  border-radius:16px;
+  padding:20px;
+}
+
+.card h3 {
+  margin-top:0;
+  font-size:16px;
+  opacity:.8;
+}
+
+canvas {
+  width:100%;
+  height:220px;
+}
+
+.metric {
+  font-size:36px;
+  font-weight:600;
+}
+
+.sub {
+  opacity:.6;
+  font-size:13px;
+}
+
+.weight-row {
+  margin-bottom:10px;
+}
+
+.bar {
+  height:6px;
+  background:#30363d;
+  border-radius:6px;
+  overflow:hidden;
+}
+
+.bar-inner {
+  height:100%;
+  background:#3b82f6;
+}
+
+</style>
+</head>
+<body>
+
+<header style="display:flex; justify-content:space-between; align-items:center;">
+  <div>AI 모델 분석 대시보드</div>
+  <button onclick="goToIndex()" style="
+    background:#21262d;
+    color:#e6edf3;
+    border:1px solid #30363d;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+  ">← 대시보드</button>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>📉 평균 오차율 (MAE)</h3>
+    <div class="metric" id="maeValue">0</div>
+    <div class="sub">Actual vs Predicted 평균 절대 오차</div>
+  </div>
+
+  <div class="card">
+    <h3>🎯 모델 정확도</h3>
+    <div class="metric" id="accuracyValue">0%</div>
+    <div class="sub">100 - (MAE 기준 정규화)</div>
+  </div>
+
+  <div class="card">
+    <h3>📊 오차 추이 그래프</h3>
+    <canvas id="errorChart"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>🧠 가중치 시각화</h3>
+    <div id="weightsContainer"></div>
+  </div>
+
+  <div class="card" style="grid-column:1 / span 2;">
+    <h3>📈 Learning Curve (Loss vs Epoch)</h3>
+    <canvas id="lossChart"></canvas>
+  </div>
+
+  <div class="card" style="grid-column:1 / span 2;">
+    <h3>📊 Actual vs Predicted (Scatter Plot)</h3>
+    <canvas id="scatterChart"></canvas>
+  </div>
+
+</div>
+
+<script>
+
+function goToIndex(){ window.location.href="index.html"; }
+
+const sessions = JSON.parse(localStorage.getItem("sessions")) || [];
+
+if (sessions.length < 12) {
+  document.querySelector(".container").innerHTML =
+    "<div style='padding:40px'>⚠ 최소 12세션 이상 필요 (NN 학습용)<br>현재: "
+    + sessions.length + " 세션</div>";
+  throw new Error("Not enough data");
+}
+
+// ================= DATA =================
+const X = sessions.map(s=>[
+  s.sleep||0,
+  s.runTime||0,
+  s.caffeine||0,
+  s.water||0
+]);
+const y = sessions.map(s=>s.score||0);
+
+const splitIdx=Math.floor(X.length*0.8);
+const X_train=X.slice(0,splitIdx);
+const y_train=y.slice(0,splitIdx);
+const X_val=X.slice(splitIdx);
+const y_val=y.slice(splitIdx);
+
+// ================= NORMALIZATION =================
+function normalize(X){
+  const means=[],stds=[];
+  for(let j=0;j<X[0].length;j++){
+    const col=X.map(r=>r[j]);
+    const mean=col.reduce((a,b)=>a+b,0)/col.length;
+    const std=Math.sqrt(col.reduce((a,b)=>a+Math.pow(b-mean,2),0)/col.length)||1;
+    means.push(mean); stds.push(std);
+  }
+  return {
+    Xn:X.map(r=>r.map((v,j)=>(v-means[j])/stds[j])),
+    means,stds
+  };
+}
+
+const {Xn:X_train_n,means,stds}=normalize(X_train);
+const X_val_n=X_val.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
+
+// ================= NEURAL NETWORK =================
+
+const inputSize = 4;
+const hiddenSize = 8;
+
+// Initialize weights
+let W1 = Array.from({length:inputSize},()=>
+  Array.from({length:hiddenSize},()=>Math.random()*0.1-0.05)
+);
+let b1 = new Array(hiddenSize).fill(0);
+
+let W2 = Array.from({length:hiddenSize},()=>Math.random()*0.1-0.05);
+let b2 = 0;
+
+function relu(x){ return Math.max(0,x); }
+function reluDeriv(x){ return x>0?1:0; }
+
+function forward(x){
+  const z1 = new Array(hiddenSize).fill(0);
+  const a1 = new Array(hiddenSize).fill(0);
+
+  for(let j=0;j<hiddenSize;j++){
+    for(let i=0;i<inputSize;i++){
+      z1[j]+=x[i]*W1[i][j];
+    }
+    z1[j]+=b1[j];
+    a1[j]=relu(z1[j]);
+  }
+
+  let z2=0;
+  for(let j=0;j<hiddenSize;j++){
+    z2+=a1[j]*W2[j];
+  }
+  z2+=b2;
+
+  return {z1,a1,z2};
+}
+
+// ================= TRAIN (ADAM OPTIMIZER) =================
+let lossHistory=[];
+
+function train(epochs=1200, lr=0.005){
+
+  const beta1 = 0.9;
+  const beta2 = 0.999;
+  const epsilon = 1e-8;
+
+  // Adam state
+  let mW1 = W1.map(row=>row.map(()=>0));
+  let vW1 = W1.map(row=>row.map(()=>0));
+  let mb1 = new Array(hiddenSize).fill(0);
+  let vb1 = new Array(hiddenSize).fill(0);
+
+  let mW2 = new Array(hiddenSize).fill(0);
+  let vW2 = new Array(hiddenSize).fill(0);
+  let mb2 = 0;
+  let vb2 = 0;
+
+  let t = 0;
+
+  for(let e=0;e<epochs;e++){
+    let totalLoss=0;
+
+    for(let n=0;n<X_train_n.length;n++){
+      t++;
+
+      const {z1,a1,z2}=forward(X_train_n[n]);
+      const yHat=z2;
+      const error=yHat-y_train[n];
+      totalLoss+=error*error;
+
+      // Output gradients
+      const dW2 = a1.map(a=>a*error);
+      const db2 = error;
+
+      // Hidden gradients
+      const dHidden = new Array(hiddenSize);
+      for(let j=0;j<hiddenSize;j++){
+        dHidden[j]=W2[j]*error*reluDeriv(z1[j]);
+      }
+
+      // === ADAM UPDATE W2 ===
+      for(let j=0;j<hiddenSize;j++){
+        mW2[j]=beta1*mW2[j]+(1-beta1)*dW2[j];
+        vW2[j]=beta2*vW2[j]+(1-beta2)*(dW2[j]**2);
+
+        const mHat=mW2[j]/(1-Math.pow(beta1,t));
+        const vHat=vW2[j]/(1-Math.pow(beta2,t));
+
+        W2[j]-=lr*mHat/(Math.sqrt(vHat)+epsilon);
+      }
+
+      mb2=beta1*mb2+(1-beta1)*db2;
+      vb2=beta2*vb2+(1-beta2)*(db2**2);
+      const mb2Hat=mb2/(1-Math.pow(beta1,t));
+      const vb2Hat=vb2/(1-Math.pow(beta2,t));
+      b2-=lr*mb2Hat/(Math.sqrt(vb2Hat)+epsilon);
+
+      // === ADAM UPDATE W1 ===
+      for(let i=0;i<inputSize;i++){
+        for(let j=0;j<hiddenSize;j++){
+          const grad = X_train_n[n][i]*dHidden[j];
+
+          mW1[i][j]=beta1*mW1[i][j]+(1-beta1)*grad;
+          vW1[i][j]=beta2*vW1[i][j]+(1-beta2)*(grad**2);
+
+          const mHat=mW1[i][j]/(1-Math.pow(beta1,t));
+          const vHat=vW1[i][j]/(1-Math.pow(beta2,t));
+
+          W1[i][j]-=lr*mHat/(Math.sqrt(vHat)+epsilon);
+        }
+      }
+
+      for(let j=0;j<hiddenSize;j++){
+        mb1[j]=beta1*mb1[j]+(1-beta1)*dHidden[j];
+        vb1[j]=beta2*vb1[j]+(1-beta2)*(dHidden[j]**2);
+
+        const mHat=mb1[j]/(1-Math.pow(beta1,t));
+        const vHat=vb1[j]/(1-Math.pow(beta2,t));
+
+        b1[j]-=lr*mHat/(Math.sqrt(vHat)+epsilon);
+      }
+    }
+
+    lossHistory.push(totalLoss/X_train_n.length);
+  }
+}
+
+train();
+
+function predictBatch(Xn){
+  return Xn.map(x=>forward(x).z2);
+}
+
+// ================= METRICS =================
+function MAE(yT,yP){
+  return yT.reduce((s,v,i)=>s+Math.abs(v-yP[i]),0)/yT.length;
+}
+function R2(yT,yP){
+  const mean=yT.reduce((a,b)=>a+b,0)/yT.length;
+  let ssRes=0,ssTot=0;
+  for(let i=0;i<yT.length;i++){
+    ssRes+=Math.pow(yT[i]-yP[i],2);
+    ssTot+=Math.pow(yT[i]-mean,2);
+  }
+  return 1-(ssRes/ssTot);
+}
+
+const valPred=predictBatch(X_val_n);
+const valMAE=MAE(y_val,valPred);
+const valR2=R2(y_val,valPred);
+
+// ================= UI =================
+document.getElementById("maeValue").textContent=valMAE.toFixed(2);
+document.getElementById("accuracyValue").textContent=(valR2*100).toFixed(1)+"%";
+
+// ================= LOSS GRAPH =================
+function drawLoss(){
+  const c=document.getElementById("lossChart");
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.beginPath(); ctx.strokeStyle="#10b981";
+
+  const maxLoss=Math.max(...lossHistory);
+  lossHistory.forEach((l,i)=>{
+    const x=(i/(lossHistory.length-1))*c.width;
+    const yPos=c.height-(l/maxLoss)*c.height;
+    if(i===0)ctx.moveTo(x,yPos);
+    else ctx.lineTo(x,yPos);
+  });
+  ctx.stroke();
+}
+drawLoss();
+
+// ================= ERROR GRAPH =================
+function drawErrorChart(){
+  const c=document.getElementById("errorChart");
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.beginPath(); ctx.strokeStyle="#3b82f6";
+
+  valPred.forEach((p,i)=>{
+    const err=Math.abs(p-y_val[i]);
+    const x=(i/(valPred.length-1))*c.width;
+    const yPos=c.height-(err/100)*c.height;
+    if(i===0)ctx.moveTo(x,yPos);
+    else ctx.lineTo(x,yPos);
+  });
+  ctx.stroke();
+}
+drawErrorChart();
+
+// ================= SCATTER PLOT =================
+function drawScatter(){
+  const c=document.getElementById("scatterChart");
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const padding=30;
+  const width=c.width-padding*2;
+  const height=c.height-padding*2;
+
+  // draw diagonal reference line
+  ctx.beginPath();
+  ctx.strokeStyle="#444";
+  ctx.moveTo(padding,padding+height);
+  ctx.lineTo(padding+width,padding);
+  ctx.stroke();
+
+  // plot points
+  ctx.fillStyle="#3b82f6";
+
+  valPred.forEach((pred,i)=>{
+    const actual=y_val[i];
+
+    const x=padding+(actual/100)*width;
+    const y=padding+height-(pred/100)*height;
+
+    ctx.beginPath();
+    ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+drawScatter();
+
+// ================= WEIGHT VISUAL =================
+const container=document.getElementById("weightsContainer");
+container.innerHTML="🧠 Hidden Layer: "+hiddenSize+" nodes";
+
+</script>
+
+</body>
+</html>
