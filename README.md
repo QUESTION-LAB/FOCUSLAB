@@ -410,42 +410,6 @@ FOCUSLAB은 분석 결과를 단순히 보여주지 않습니다.
 
 ---
 
-## 🧩 Design Philosophy
-
-FOCUSLAB은 감성 생산성 앱이 아닙니다.
-
-우리는 다음을 추구합니다:
-
-- 감성보다 통제
-- 장식보다 구조
-- 직감보다 데이터
-- 동기보다 시스템
-
-UI는 사용자의 인지 자원을 아끼기 위해 설계되었습니다.
-불필요한 감성적 연출 대신, 즉각적 피드백과 명확한 계층 구조를 제공합니다.
-
-또한 FOCUSLAB은 "동기 설계"를 포함합니다.
-
-- 랭크 시스템
-- RP 게이지
-- 승급 애니메이션
-- 희귀도 기반 업적
-
-이는 집중을 감정이 아닌, 반복 가능한 퍼포먼스 루프로 만들기 위한 구조적 장치입니다.
-
-FOCUSLAB의 인터페이스는 단순한 화면이 아니라,
-
-> 개인 인지 퍼포먼스를 운영하는 콘솔(Console)
-
-입니다.
-
----
-
-## 🔁 Behavior Loop Model
-
-FOCUSLAB은 단순 추적 앱이 아니라,
-행동 루프를 설계합니다.
-
 ### 📌 1. Trigger
 
 - 타이머 시작
@@ -515,36 +479,48 @@ FOCUSLAB은 다음과 같은 제품적 관점을 실험합니다:
 
 ---
 
-## 🛠 Tech Stack
 
-- HTML  
-- CSS  
-- Vanilla JavaScript  
-- LocalStorage 기반 데이터 관리  
-- Canvas 기반 시각화
+# 🔁 Behavior Loop Model
+
+```mermaid
+graph LR
+
+Trigger --> Action
+Action --> Feedback
+Feedback --> Reinforcement
+Reinforcement --> Trigger
+```
+
+FOCUSLAB은 동기가 아니라,
+
+> 구조적 자기 강화 시스템
+
+을 설계합니다.
 
 ---
 
-## 📍 Project Status
 
-현재 버전은 개인 집중 분석 시스템의 MVP입니다.
+# 📈 Current Status
+
+- Neural Focus Model v2
+- Adam Optimizer
+- Scatter Plot
+- Learning Curve
+- Rank System
+- Achievement Engine
 
 FOCUSLAB은 계속 진화합니다.
 
 ---
 
-## 🧠 Final Thought
+# 🧠 Final Thought
 
 시간을 재는 것은 누구나 할 수 있습니다.
 
-하지만,
+집중을 이해하는 것은 다릅니다.
 
-집중을 이해하고,  
-집중을 분석하고,  
-집중을 예측하고,  
-집중을 전략화하는 것은 다릅니다.
+집중을 모델링하는 것은 더 어렵습니다.
 
-FOCUSLAB은 단순한 타이머가 아닙니다.
+FOCUSLAB은 그 실험입니다.
 
-**집중을 설계하는 시스템입니다.**
-#FOCUSLAB
+**Design Your Focus.**
