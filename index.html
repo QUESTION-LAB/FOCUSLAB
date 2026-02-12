@@ -765,9 +765,15 @@ function calculateScore() {
   let runBonus = (runTime > 20 && runDistance > 2) ? 10 * adaptiveWeights.exercise : 0;
   let caffeinePenalty = caffeine > 2 ? 5 * adaptiveWeights.caffeine : 0;
 
-  let finalScore = Math.max(0,
-    focusBase + sleepBonus + runBonus - distractionPenalty - caffeinePenalty
-  );
+ // ===== FIXED EXERCISE DAY BONUS (Mon, Tue, Thu, Fri) =====
+const today = new Date();
+const exerciseDays = [1,2,4,5]; // 월화목금
+let exerciseDayBonus = exerciseDays.includes(today.getDay()) ? 5 : 0;
+
+let finalScore = Math.max(0,
+  focusBase + sleepBonus + runBonus + exerciseDayBonus
+  - distractionPenalty - caffeinePenalty
+);
 
   finalScore = Math.min(100, Math.round(finalScore));
 
@@ -809,6 +815,10 @@ function calculateScore() {
   }
 
   document.getElementById("score").textContent = finalScore;
+  if (exerciseDayBonus > 0) {
+  document.getElementById("warning").textContent =
+    "🏃 운동일 보너스 +5 적용";
+}
   // ===== RP GAIN =====
 let rpGain = Math.round(finalScore * 0.5);
 if (finalScore === 100) rpGain += 20;
@@ -1112,6 +1122,21 @@ function drawActivityTimeline() {
   let sessions = JSON.parse(localStorage.getItem("focusSessions")) || [];
   let today = new Date();
 
+  // ===== FIXED EXERCISE SCHEDULE (15:00–16:00, Mon/Tue/Thu/Fri) =====
+  const day = today.getDay(); // 0=Sun
+  const exerciseDays = [1,2,4,5]; // Mon, Tue, Thu, Fri
+
+  if (exerciseDays.includes(day)) {
+    let exStartHour = 15;
+    let exEndHour = 16;
+
+    let exX = (exStartHour / 24) * 400;
+    let exWidth = ((exEndHour - exStartHour) / 24) * 400;
+
+    tctx.fillStyle = exerciseColor;
+    tctx.fillRect(exX, 20, exWidth, 20);
+  }
+
   // background hour grid
   tctx.fillStyle = "#1f2630";
   for(let h=0; h<24; h++){
@@ -1128,21 +1153,6 @@ function drawActivityTimeline() {
   todaySessions.forEach(s => {
     let start = new Date(s.studyStart);
     let end = new Date(s.studyEnd);
-
-    // draw exercise block before study if runTime exists
-    if (s.runTime && s.runTime > 0) {
-      let exerciseEnd = start;
-      let exerciseStart = new Date(exerciseEnd.getTime() - (s.runTime * 60000));
-
-      let exStartHour = exerciseStart.getHours() + exerciseStart.getMinutes()/60;
-      let exEndHour = exerciseEnd.getHours() + exerciseEnd.getMinutes()/60;
-
-      let exX = (exStartHour / 24) * 400;
-      let exWidth = ((exEndHour - exStartHour)/24) * 400;
-
-      tctx.fillStyle = exerciseColor;
-      tctx.fillRect(exX, 20, exWidth, 20);
-    }
 
     let startHour = start.getHours() + start.getMinutes()/60;
     let endHour = end.getHours() + end.getMinutes()/60;
