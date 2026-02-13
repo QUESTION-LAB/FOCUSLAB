@@ -91,6 +91,62 @@ header {
   0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.08);}
   100% { box-shadow: 0 0 12px 0 rgba(16,185,129,0.18);}
 }
+
+/* Premium Minimal AI Notice Card */
+.ai-notice {
+  background: linear-gradient(135deg,#111827,#0f172a);
+  border: 1px solid #1f2937;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-notice::after {
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:2px;
+  background:linear-gradient(90deg,#10b981,#3b82f6);
+  opacity:0.7;
+}
+
+.ai-notice-header {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.ai-dot {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#f59e0b;
+  box-shadow:0 0 10px rgba(245,158,11,0.6);
+}
+.ai-dot.active {
+  background:#10b981;
+  box-shadow:0 0 12px rgba(16,185,129,0.8);
+  animation: aiPulse 1.2s infinite alternate;
+}
+@keyframes aiPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.2); }
+}
+
+.ai-title {
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:0.5px;
+  opacity:0.9;
+}
+
+.ai-notice-body {
+  font-size:14px;
+  opacity:0.7;
+  line-height:1.5;
+}
 </style>
 </head>
 <body>
@@ -109,9 +165,13 @@ header {
 
 <div class="container">
 
-  <div id="dataNotice" class="card" style="grid-column:1 / span 2; display:none; background:#1f2937; border:1px solid #374151;">
-    <h3>⚠ 학습 데이터 부족</h3>
-    <div class="sub" id="noticeText"></div>
+  <!-- AI Data Notice Card -->
+  <div id="dataNoticeCard" class="card ai-notice" style="grid-column:1 / span 2; display:none;">
+    <div class="ai-notice-header">
+      <div class="ai-dot"></div>
+      <div class="ai-title">AI Learning Standby</div>
+    </div>
+    <div class="ai-notice-body" id="dataNoticeText"></div>
   </div>
 
   <div class="card">
@@ -175,8 +235,13 @@ header {
 
 function goToIndex(){ window.location.href="index.html"; }
 
-const sessions = JSON.parse(localStorage.getItem("sessions")) || [];
+const sessions = JSON.parse(localStorage.getItem("focusSessions")) || [];
 const MIN_SESSIONS = 10;
+
+const noticeCard = document.getElementById("dataNoticeCard");
+const noticeDot = document.querySelector(".ai-dot");
+const noticeTitle = document.querySelector(".ai-title");
+const noticeText = document.getElementById("dataNoticeText");
 
 // ===== Model Confidence =====
 const modelConfidence = Math.min(100, sessions.length * 3);
@@ -219,8 +284,7 @@ function normalize(X){
   };
 }
 
-const {Xn:X_train_n,means,stds}=normalize(X_train);
-const X_val_n=X_val.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
+
 
 // ================= NEURAL NETWORK =================
 
@@ -354,10 +418,10 @@ let valPred, valMAE, valR2;
 
 if (sessions.length < MIN_SESSIONS) {
 
-  document.getElementById("dataNotice").style.display = "block";
-  document.getElementById("noticeText").innerHTML =
-    `현재 세션 수: <b>${sessions.length}</b>개<br>` +
-    `최소 ${MIN_SESSIONS}개 이상부터 AI 학습이 시작됩니다.`;
+  noticeCard.style.display = "block";
+  noticeText.innerHTML =
+    `현재 세션 수: <b>${sessions.length}</b>개<br>
+     최소 ${MIN_SESSIONS}개 이상부터 AI 학습이 시작됩니다.`;
 
   valPred = [];
   valMAE = 0;
@@ -365,6 +429,15 @@ if (sessions.length < MIN_SESSIONS) {
   lossHistory = [];
 
 } else {
+
+  noticeCard.style.display = "block";
+  noticeDot.classList.add("active");
+  noticeTitle.textContent = "AI Training Active";
+  noticeText.innerHTML =
+    `현재 세션 수: <b>${sessions.length}</b>개<br>
+     인공지능이 데이터를 학습 중입니다...`;
+
+  // noticeCard.style.display = "none";
 
   // 🔥 Advanced AI Activation when reaching 30 sessions
   if (sessions.length === 30) {
@@ -381,6 +454,9 @@ if (sessions.length < MIN_SESSIONS) {
       titleEl.textContent = originalText;
     },1800);
   }
+
+  const {Xn:X_train_n,means,stds}=normalize(X_train);
+  const X_val_n=X_val.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
 
   if (!useCache) {
     train();
@@ -404,18 +480,6 @@ if (sessions.length < MIN_SESSIONS) {
 }
 
 // ================= METRICS =================
-function MAE(yT,yP){
-  return yT.reduce((s,v,i)=>s+Math.abs(v-yP[i]),0)/yT.length;
-}
-function R2(yT,yP){
-  const mean=yT.reduce((a,b)=>a+b,0)/yT.length;
-  let ssRes=0,ssTot=0;
-  for(let i=0;i<yT.length;i++){
-    ssRes+=Math.pow(yT[i]-yP[i],2);
-    ssTot+=Math.pow(yT[i]-mean,2);
-  }
-  return 1-(ssRes/ssTot);
-}
 
 // ================= UI =================
 document.getElementById("maeValue").textContent = valMAE.toFixed(2);
@@ -426,6 +490,7 @@ document.getElementById("errorRateValue").textContent = errorRate.toFixed(1)+"%"
 
 document.getElementById("confidenceValue").textContent = modelConfidence + "%";
 document.getElementById("sessionCountValue").textContent = sessions.length;
+
 
 // ================= LOSS GRAPH =================
 function drawLoss(){
