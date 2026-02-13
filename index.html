@@ -437,29 +437,6 @@ body.rank-diamond .timer-card {
   }
 }
 
-@media(max-width:480px) {
-  .timer-card {
-    border-radius: 18px;
-  }
-
-  #rankContainer > div:nth-child(4) {
-    width: min(240px, 80vw) !important;
-  }
-
-  .stat-card,
-  .card {
-    border-radius: 18px;
-    padding: 18px;
-  }
-
-  #stampGrid {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
-
-  #heatmap {
-    gap: 3px !important;
-  }
-}
 </style>
 </head>
 
@@ -1496,6 +1473,27 @@ function generateHeatmap() {
       let avg = Math.round(daySessions.reduce((a,b)=>a+b.score,0)/daySessions.length);
       let intensity = avg / 100;
       cell.style.background = `rgba(52,199,89,${intensity})`;
+
+      // ===== 총 공부 시간 계산 =====
+      let totalMinutes = daySessions.reduce((sum, s) => {
+        if (!s.studyStart || !s.studyEnd) return sum;
+        return sum + ((s.studyEnd - s.studyStart) / 60000);
+      }, 0);
+
+      totalMinutes = Math.round(totalMinutes);
+
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      let formattedTime = "";
+      if (hours > 0) {
+        formattedTime = `${hours}시간 ${minutes}분`;
+      } else {
+        formattedTime = `${minutes}분`;
+      }
+
+      // Tooltip (native)
+      cell.title = `📅 ${year}/${month+1}/${d}\n총 공부시간: ${formattedTime}\n평균 점수: ${avg}`;
     }
 
     heatmap.appendChild(cell);
@@ -1666,3 +1664,64 @@ loadDashboardState();
 
 </body>
 </html>
+/* ================= CLEAN MOBILE REDESIGN ================= */
+@media (max-width:768px) {
+
+  body {
+    padding: 16px;
+  }
+
+  .top-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-card {
+    grid-column: auto !important;
+    padding: 30px 16px;
+  }
+
+  .stat-card {
+    grid-column: auto !important;
+    min-height: unset;
+    padding: 20px;
+  }
+
+  .control-hub {
+    grid-column: auto !important;
+  }
+
+  .timer {
+    font-size: 64px;
+    letter-spacing: 4px;
+  }
+
+  .score {
+    font-size: 56px;
+  }
+
+  .score.small {
+    font-size: 44px;
+  }
+
+  .control-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .lower-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .session-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  canvas {
+    width: 100% !important;
+    height: auto;
+  }
+}
