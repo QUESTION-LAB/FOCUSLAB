@@ -269,6 +269,11 @@ const y_train=y.slice(0,splitIdx);
 const X_val=X.slice(splitIdx);
 const y_val=y.slice(splitIdx);
 
+let X_train_n = [];
+let X_val_n = [];
+let means = [];
+let stds = [];
+
 // ================= NORMALIZATION =================
 function normalize(X){
   const means=[],stds=[];
@@ -327,7 +332,7 @@ function forward(x){
 // ================= TRAIN (ADAM OPTIMIZER) =================
 let lossHistory=[];
 
-function train(epochs=1200, lr=0.005){
+function train(X_train_n, epochs=1200, lr=0.005){
 
   const beta1 = 0.9;
   const beta2 = 0.999;
@@ -455,11 +460,14 @@ if (sessions.length < MIN_SESSIONS) {
     },1800);
   }
 
-  const {Xn:X_train_n,means,stds}=normalize(X_train);
-  const X_val_n=X_val.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
+  const norm = normalize(X_train);
+  X_train_n = norm.Xn;
+  means = norm.means;
+  stds = norm.stds;
+  X_val_n = X_val.map(r=>r.map((v,j)=>(v-means[j])/stds[j]));
 
   if (!useCache) {
-    train();
+    train(X_train_n);
     valPred = predictBatch(X_val_n);
     valMAE = MAE(y_val,valPred);
     valR2 = R2(y_val,valPred);
@@ -477,6 +485,27 @@ if (sessions.length < MIN_SESSIONS) {
     valMAE = cached.valMAE;
     valR2 = cached.valR2;
   }
+}
+
+
+function predictBatch(X){
+  return X.map(x=>forward(x).z2);
+}
+
+function MAE(yT,yP){
+  if(!yT.length) return 0;
+  return yT.reduce((s,v,i)=>s+Math.abs(v-yP[i]),0)/yT.length;
+}
+
+function R2(yT,yP){
+  if(!yT.length) return 0;
+  const mean=yT.reduce((a,b)=>a+b,0)/yT.length;
+  let ssRes=0,ssTot=0;
+  for(let i=0;i<yT.length;i++){
+    ssRes+=Math.pow(yT[i]-yP[i],2);
+    ssTot+=Math.pow(yT[i]-mean,2);
+  }
+  return 1-(ssRes/ssTot);
 }
 
 // ================= METRICS =================
