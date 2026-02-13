@@ -71,6 +71,26 @@ canvas {
   background:#3b82f6;
 }
 
+/* --- AI Activation Animation --- */
+@keyframes aiActivate {
+  0% { transform: scale(0.95); opacity:0; }
+  50% { transform: scale(1.05); opacity:1; }
+  100% { transform: scale(1); }
+}
+.ai-activated {
+  animation: aiActivate 0.8s ease-out;
+  box-shadow: 0 0 25px rgba(16,185,129,0.6);
+  border:1px solid #10b981 !important;
+}
+
+header {
+  /* subtle pulse effect */
+  animation: headerPulse 2.4s infinite alternate cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes headerPulse {
+  0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.08);}
+  100% { box-shadow: 0 0 12px 0 rgba(16,185,129,0.18);}
+}
 </style>
 </head>
 <body>
@@ -88,6 +108,11 @@ canvas {
 </header>
 
 <div class="container">
+
+  <div id="dataNotice" class="card" style="grid-column:1 / span 2; display:none; background:#1f2937; border:1px solid #374151;">
+    <h3>⚠ 학습 데이터 부족</h3>
+    <div class="sub" id="noticeText"></div>
+  </div>
 
   <div class="card">
     <h3>📉 평균 오차율 (MAE)</h3>
@@ -151,6 +176,7 @@ canvas {
 function goToIndex(){ window.location.href="index.html"; }
 
 const sessions = JSON.parse(localStorage.getItem("sessions")) || [];
+const MIN_SESSIONS = 10;
 
 // ===== Model Confidence =====
 const modelConfidence = Math.min(100, sessions.length * 3);
@@ -326,24 +352,55 @@ function train(epochs=1200, lr=0.005){
 
 let valPred, valMAE, valR2;
 
-if (!useCache) {
-  train();
-  valPred = predictBatch(X_val_n);
-  valMAE = MAE(y_val,valPred);
-  valR2 = R2(y_val,valPred);
+if (sessions.length < MIN_SESSIONS) {
 
-  localStorage.setItem(cacheKey, JSON.stringify({
-    sessionCount: sessions.length,
-    lossHistory,
-    valPred,
-    valMAE,
-    valR2
-  }));
+  document.getElementById("dataNotice").style.display = "block";
+  document.getElementById("noticeText").innerHTML =
+    `현재 세션 수: <b>${sessions.length}</b>개<br>` +
+    `최소 ${MIN_SESSIONS}개 이상부터 AI 학습이 시작됩니다.`;
+
+  valPred = [];
+  valMAE = 0;
+  valR2 = 0;
+  lossHistory = [];
+
 } else {
-  lossHistory = cached.lossHistory;
-  valPred = cached.valPred;
-  valMAE = cached.valMAE;
-  valR2 = cached.valR2;
+
+  // 🔥 Advanced AI Activation when reaching 30 sessions
+  if (sessions.length === 30) {
+    const headerEl = document.querySelector("header");
+    headerEl.classList.add("ai-activated");
+
+    // Change header title temporarily
+    const titleEl = headerEl.querySelector("div");
+    const originalText = titleEl.textContent;
+    titleEl.textContent = "🧠 Advanced AI Mode Activated";
+
+    setTimeout(()=>{
+      headerEl.classList.remove("ai-activated");
+      titleEl.textContent = originalText;
+    },1800);
+  }
+
+  if (!useCache) {
+    train();
+    valPred = predictBatch(X_val_n);
+    valMAE = MAE(y_val,valPred);
+    valR2 = R2(y_val,valPred);
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      sessionCount: sessions.length,
+      lossHistory,
+      valPred,
+      valMAE,
+      valR2
+    }));
+  } else {
+    lossHistory = cached.lossHistory;
+    valPred = cached.valPred;
+    valMAE = cached.valMAE;
+    valR2 = cached.valR2;
+  }
 }
 
 // ================= METRICS =================
