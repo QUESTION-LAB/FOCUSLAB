@@ -348,6 +348,8 @@ body.rank-diamond .timer-card {
   border-radius: 6px;
   background: #161b22;
   transition: all .2s ease;
+  position: relative;
+  cursor: pointer;
 }
 
 #heatmap div:hover {
@@ -389,6 +391,29 @@ body.rank-diamond .timer-card {
   margin-top: 20px;
   padding-top: 15px;
   border-top: 1px solid #1f2630;
+}
+
+/* ================= HEATMAP TOOLTIP ================= */
+.heat-tooltip {
+  position: fixed;
+  background: #0d1117;
+  color: #e6edf3;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 10px;
+  border: 1px solid #2d333b;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity .15s ease, transform .15s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.heat-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media(max-width:1100px) {
@@ -1492,8 +1517,9 @@ function generateHeatmap() {
         formattedTime = `${minutes}분`;
       }
 
-      // Tooltip (native)
-      cell.title = `📅 ${year}/${month+1}/${d}\n총 공부시간: ${formattedTime}\n평균 점수: ${avg}`;
+      // Tooltip (custom)
+      cell.dataset.tooltip =
+        `📅 ${year}/${month+1}/${d}\n총 공부시간: ${formattedTime}\n평균 점수: ${avg}`;
     }
 
     heatmap.appendChild(cell);
@@ -1660,6 +1686,31 @@ updateRank();
 loadLiveSessionState();
 loadBodyInputs();
 loadDashboardState();
+
+// ================= HEATMAP TOOLTIP ENGINE =================
+const heatTooltip = document.createElement("div");
+heatTooltip.className = "heat-tooltip";
+document.body.appendChild(heatTooltip);
+
+document.addEventListener("mouseover", (e) => {
+  if (e.target.dataset && e.target.dataset.tooltip) {
+    heatTooltip.textContent = e.target.dataset.tooltip;
+    heatTooltip.classList.add("visible");
+  }
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (heatTooltip.classList.contains("visible")) {
+    heatTooltip.style.left = e.clientX + 15 + "px";
+    heatTooltip.style.top = e.clientY + 15 + "px";
+  }
+});
+
+document.addEventListener("mouseout", (e) => {
+  if (e.target.dataset && e.target.dataset.tooltip) {
+    heatTooltip.classList.remove("visible");
+  }
+});
 </script>
 
 </body>
