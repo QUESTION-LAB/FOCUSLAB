@@ -204,6 +204,13 @@ header {
     <div class="sub">현재 학습에 사용된 세션 수</div>
   </div>
 
+  <!-- 🧭 AI 집중 전략 제안 카드 -->
+  <div class="card" id="strategyCard">
+    <h3>🧭 AI 집중 전략 제안</h3>
+    <div class="metric" id="strategyTitle" style="font-size:20px;">분석 대기 중...</div>
+    <div class="sub" id="strategyText" style="margin-top:10px;"></div>
+  </div>
+
   <div class="card">
     <h3>📊 오차 추이 그래프</h3>
     <canvas id="errorChart"></canvas>
@@ -634,6 +641,49 @@ drawOnlineLearning();
 const container=document.getElementById("weightsContainer");
 container.innerHTML="🧠 Hidden Layer: "+hiddenSize+" nodes";
 
+// ================= STRATEGY ENGINE =================
+function generateStrategy(){
+
+  if(sessions.length < MIN_SESSIONS){
+    document.getElementById("strategyTitle").textContent = "데이터 부족";
+    document.getElementById("strategyText").textContent =
+      "최소 10개 세션 이상 필요합니다.";
+    return;
+  }
+
+  // 평균 feature 값 계산
+  const avgSleep = sessions.reduce((a,s)=>a+(s.sleep||0),0)/sessions.length;
+  const avgRun = sessions.reduce((a,s)=>a+(s.runTime||0),0)/sessions.length;
+  const avgCaffeine = sessions.reduce((a,s)=>a+(s.caffeine||0),0)/sessions.length;
+  const avgWater = sessions.reduce((a,s)=>a+(s.water||0),0)/sessions.length;
+
+  let advice = [];
+
+  if(avgSleep < 360) advice.push("수면 시간이 부족합니다. 최소 6시간 이상 확보하세요.");
+  if(avgWater < 800) advice.push("수분 섭취를 늘리면 집중력이 개선될 수 있습니다.");
+  if(avgCaffeine > 2) advice.push("카페인 섭취가 많습니다. 줄이는 것이 좋습니다.");
+  if(avgRun < 20) advice.push("운동 시간이 적습니다. 20분 이상 운동을 권장합니다.");
+
+  // 모델 가중치 기반 영향도 추정
+  const featureInfluence = W1.map(row=>
+    row.reduce((a,b)=>a+Math.abs(b),0)
+  );
+
+  const featureNames = ["수면","운동","카페인","수분"];
+  let maxIdx = featureInfluence.indexOf(Math.max(...featureInfluence));
+
+  let dominantFeature = featureNames[maxIdx];
+
+  document.getElementById("strategyTitle").textContent =
+    `현재 가장 큰 영향 요인: ${dominantFeature}`;
+
+  document.getElementById("strategyText").innerHTML =
+    advice.length
+      ? advice.join("<br>")
+      : "현재 루틴은 안정적입니다. 유지하세요.";
+}
+
+generateStrategy();
 </script>
 
 </body>
